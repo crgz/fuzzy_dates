@@ -61,7 +61,7 @@ $(GH_KEYRING):
 	@apt-get -qqy install $(notdir $@)
 	@touch $@
 
-.PHONY: clean-utilities ## Test utilities installation with: sudo make clean-utilities utilities && make test
+.PHONY: clean-utilities ## Test utilities installation with sudo make clean-utilities utilities && make test
 clean-utilities:
 	@apt-get --purge -qqy autoremove swi-prolog-nox bumpversion python3-venv python3-pip
 	@add-apt-repository --remove -y ppa:swi-prolog/stable
@@ -79,7 +79,7 @@ synchronize: /usr/bin/git
 VENV = venv
 PYTHON_PATH = $(VENV)/bin
 PYTHON = $(PYTHON_PATH)/python3
-test: $(PYTHON_PATH)/pytest install
+test: $(PYTHON_PATH)/pytest parser
 	@$(PYTHON) -m pytest -p no:cacheprovider
 
 $(PYTHON_PATH)/%: $(VENV)/bin/activate # Install packages from default repo
@@ -91,10 +91,18 @@ $(VENV)/bin/activate: requirements.txt
 	@$(PYTHON) -m pip install --use-pep517 -r requirements.txt
 	@touch $@
 
+.PHONY: parser ## Install the latest parser release. Override parser version with make VERSION=v0.0.? parser
+PACK_PATH = ${HOME}/.local/share/swi-prolog/pack
+parser: $(PACK_PATH)/abbreviated_dates
+$(PACK_PATH)/abbreviated_dates: $(PACK_PATH)/tap  $(PACK_PATH)/date_time
+	@: $${VERSION:=$$(curl --silent 'https://api.github.com/repos/crgz/abbreviated_dates/releases/latest'|jq -r .tag_name)} ;\
+	REMOTE=https://github.com/crgz/abbreviated_dates/archive/$$VERSION.zip ;\
+	swipl -qg "pack_remove(abbreviated_dates),pack_install('$$REMOTE',[interactive(false)]),halt(0)" -t 'halt(1)'
+	@touch $@
 
-.PHONY: store-token ## Store the Github token
-store-token:
-	@secret-tool store --label='github.com/crgz' user ${USER} domain github.com
+$(PACK_PATH)/%:
+	@swipl -qg "pack_install('$(notdir $@)',[interactive(false)]),halt"
+	@touch $@
 
 .PHONY: bump ## Increase the version number
 bump: export GH_TOKEN ?= $(shell secret-tool lookup user ${USER} domain github.com) # Overridable
@@ -110,38 +118,25 @@ bump: /usr/bin/bumpversion committer
 TOKEN ?= $(shell secret-tool lookup user ${USER} domain pypi.org ) # Overridable
 release: build
 	@$(PYTHON) -m twine upload --skip-existing -u "__token__" -p $(TOKEN) dist/*
+
 .PHONY: build ## Build and check distribution packages
 build: $(PYTHON_PATH)/build $(PYTHON_PATH)/twine
 	@$(PYTHON) -m build --sdist --wheel
 	@$(PYTHON) -m twine check dist/*
 
-.PHONY: install	## Install the latest library release
-PACK_PATH = ${HOME}/.local/share/swi-prolog/pack
-install: packs
-
-
-.PHONY: packs ## Install the required packs. Override abbreviated_dates version with: make VERSION=v0.0.? packs
-PACK_PATH = ${HOME}/.local/share/swi-prolog/pack
-packs: $(PACK_PATH)/tap  $(PACK_PATH)/date_time $(PACK_PATH)/abbreviated_dates
-
-$(PACK_PATH)/abbreviated_dates:
-	@: $${VERSION:=$$(curl --silent 'https://api.github.com/repos/crgz/abbreviated_dates/releases/latest'|jq -r .tag_name)} ;\
-	REMOTE=https://github.com/crgz/abbreviated_dates/archive/$$VERSION.zip ;\
-	swipl -qg "pack_remove(abbreviated_dates),pack_install('$$REMOTE',[interactive(false)]),halt(0)" -t 'halt(1)'
-
-$(PACK_PATH)/%:
-	@swipl -qg "pack_install('$(notdir $@)',[interactive(false)]),halt"
+.PHONY: clean ## Remove debris from build target
+clean:  /usr/bin/swipl uninstall
+	@rm -rfd fuzzy_parser.egg-info/ dist/ .pytest_cache/ __pycache__
+	@rm -rfd $(VENV)
+	@swipl -g "(member(P,[abbreviated_dates,date_time,tap]),pack_property(P,library(P)),pack_remove(P),fail);true,halt"
 
 .PHONY: uninstall   ## Uninstall the library
 uninstall: $(PYTHON_PATH)/$(NAME)
 	@$(PIP) uninstall -y $(NAME)
 
-
-.PHONY: clean ## Remove debris from build target
-clean:  /usr/bin/swipl
-	@rm -rfd fuzzy_parser.egg-info/ dist/ .pytest_cache/ __pycache__
-	@rm -rfd $(VENV)
-	@swipl -g "(member(P,[abbreviated_dates,date_time,tap]),pack_property(P,library(P)),pack_remove(P),fail);true,halt"
+.PHONY: store-token ## Store the Github token
+store-token:
+	@secret-tool store --label='github.com/crgz' user ${USER} domain github.com
 
 .PHONY: committer ## config committer credentials
 committer:
