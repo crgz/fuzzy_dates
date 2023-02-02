@@ -61,7 +61,7 @@ $(GH_KEYRING):
 	@apt-get -qqy install $(notdir $@)
 	@touch $@
 
-.PHONY: clean-utilities ## Test utilities installation with sudo make clean-utilities utilities && make test
+.PHONY: clean-utilities ## Integration test with - sudo make clean-utilities utilities && make clean && make test
 clean-utilities:
 	@apt-get --purge -qqy autoremove swi-prolog-nox bumpversion python3-venv python3-pip
 	@add-apt-repository --remove -y ppa:swi-prolog/stable
@@ -79,16 +79,21 @@ synchronize: /usr/bin/git
 VENV = venv
 PYTHON_PATH = $(VENV)/bin
 PYTHON = $(PYTHON_PATH)/python3
-test: $(PYTHON_PATH)/pytest parser
+test: $(PYTHON_PATH)/pytest install parser
 	@$(PYTHON) -m pytest -p no:cacheprovider
 
 $(PYTHON_PATH)/%: $(VENV)/bin/activate # Install packages from default repo
 	@$(PYTHON) -m pip install $(notdir $@)
 
-$(VENV)/bin/activate: requirements.txt
+$(VENV)/bin/activate:
 	@test -d $(VENV) || python3 -m venv $(VENV)
 	@$(PYTHON) -m pip install --upgrade pip
-	@$(PYTHON) -m pip install --use-pep517 -r requirements.txt
+	@touch $@
+
+.PHONY: install ## Install this library
+install: $(VENV)/bin/fuzzy_parser
+$(VENV)/bin/fuzzy_parser:
+	@$(PYTHON) -m pip install --use-pep517 .
 	@touch $@
 
 .PHONY: parser ## Install the latest parser release. Override parser version with make VERSION=v0.0.? parser
@@ -128,11 +133,12 @@ build: $(PYTHON_PATH)/build $(PYTHON_PATH)/twine
 clean:  /usr/bin/swipl uninstall
 	@rm -rfd fuzzy_parser.egg-info/ dist/ .pytest_cache/ __pycache__
 	@rm -rfd $(VENV)
-	@swipl -g "(member(P,[abbreviated_dates,date_time,tap]),pack_property(P,library(P)),pack_remove(P),fail);true,halt"
+	@swipl -g "(member(P,[date_time,tap]),pack_property(P,library(P)),pack_remove(P),fail);true,halt"
 
 .PHONY: uninstall   ## Uninstall the library
 uninstall: $(PYTHON_PATH)/$(NAME)
-	@$(PIP) uninstall -y $(NAME)
+	$(PYTHON) -m pip uninstall -y $(NAME)
+	@swipl -g "(member(P,[abbreviated_dates]),pack_property(P,library(P)),pack_remove(P),fail);true,halt"
 
 .PHONY: store-token ## Store the Github token
 store-token:
