@@ -79,16 +79,21 @@ synchronize: /usr/bin/git
 VENV = venv
 PYTHON_PATH = $(VENV)/bin
 PYTHON = $(PYTHON_PATH)/python3
-test: $(PYTHON_PATH)/pytest parser
+test: $(PYTHON_PATH)/pytest install parser
 	@$(PYTHON) -m pytest -p no:cacheprovider
 
 $(PYTHON_PATH)/%: $(VENV)/bin/activate # Install packages from default repo
 	@$(PYTHON) -m pip install $(notdir $@)
 
-$(VENV)/bin/activate: requirements.txt
+$(VENV)/bin/activate:
 	@test -d $(VENV) || python3 -m venv $(VENV)
 	@$(PYTHON) -m pip install --upgrade pip
-	@$(PYTHON) -m pip install --use-pep517 -r requirements.txt
+	@touch $@
+
+.PHONY: install ## install this library
+install: $(VENV)/bin/fuzzy_parser
+$(VENV)/bin/fuzzy_parser:
+	@$(PYTHON) -m pip install --use-pep517 .
 	@touch $@
 
 .PHONY: parser ## Install the latest parser release. Override parser version with make VERSION=v0.0.? parser
