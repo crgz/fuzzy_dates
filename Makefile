@@ -61,7 +61,7 @@ $(GH_KEYRING):
 	@apt-get -qqy install $(notdir $@)
 	@touch $@
 
-.PHONY: clean-utilities ## Test utilities installation with sudo make clean-utilities utilities && make test
+.PHONY: clean-utilities ## Integration test with - sudo make clean-utilities utilities && make clean && make test
 clean-utilities:
 	@apt-get --purge -qqy autoremove swi-prolog-nox bumpversion python3-venv python3-pip
 	@add-apt-repository --remove -y ppa:swi-prolog/stable
@@ -90,7 +90,7 @@ $(VENV)/bin/activate:
 	@$(PYTHON) -m pip install --upgrade pip
 	@touch $@
 
-.PHONY: install ## install this library
+.PHONY: install ## Install this library
 install: $(VENV)/bin/fuzzy_parser
 $(VENV)/bin/fuzzy_parser:
 	@$(PYTHON) -m pip install --use-pep517 .
