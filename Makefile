@@ -137,7 +137,8 @@ clean:  /usr/bin/swipl uninstall
 
 .PHONY: uninstall   ## Uninstall the library
 uninstall: $(PYTHON_PATH)/$(NAME)
-	@$(PIP) uninstall -y $(NAME)
+	$(PYTHON) -m pip uninstall -y $(NAME)
+	@swipl -g "(member(P,[abbreviated_dates]),pack_property(P,library(P)),pack_remove(P),fail);true,halt"
 
 .PHONY: store-token ## Store the Github token
 store-token:
