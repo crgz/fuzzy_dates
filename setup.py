@@ -25,7 +25,7 @@ setup(
     ],
     packages=find_packages(exclude=("tests",)),
     include_package_data=True,
-    install_requires=["pytest", "pyswip"],
+    install_requires=['pyswip @ git+https://github.com/yuce/pyswip@master#egg=pyswip'],
     entry_points={
         "console_scripts": [
             "fuzzy_parser=fuzzy_parser.__main__:main",
